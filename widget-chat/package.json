@@ -1,0 +1,14 @@
+{
+  "name": "widget-chat-proxy",
+  "version": "1.0.0",
+  "description": "Chat widget com proxy para resolver problemas de CORS",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  }
+}

@@ -237,55 +237,59 @@ document.addEventListener('DOMContentLoaded', function() {
       
       let data;
       
-      if (isLocalhost) {
-        // Em ambiente local, simular resposta para evitar erro de CORS
-        console.log('Ambiente local detectado! Simulando resposta do webhook...');
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simular delay de rede
-        
-        // Simulação de resposta
-        data = {
-          success: true,
-          response: `Resposta simulada para: "${text}". Em produção, esta resposta virá do webhook.`
-        };
-      } else {
-        // Enviar mensagem para o webhook em produção
-        const webhookUrl = 'https://webhook.gaotech.com.br/webhook/f7536d59-eed7-4b27-858e-a8f66f462c08/chat';
-        
-        // Preparar os dados para envio
-        const requestData = {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(messageData)
-        };
-        
-        try {
-          // Tentar enviar a requisição para o webhook com timeout
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos de timeout
-          
-          const response = await fetch(webhookUrl, {
-            ...requestData,
-            signal: controller.signal
-          });
-          
-          clearTimeout(timeoutId);
-          
-          // Verificar se a resposta foi bem-sucedida
-          if (!response.ok) {
-            throw new Error(`Erro na comunicação com o servidor: ${response.status}`);
-          }
-          
-          // Processar a resposta do webhook
-          data = await response.json();
-        } catch (fetchError) {
-          console.error('Erro ao comunicar com webhook:', fetchError);
-          if (fetchError.name === 'AbortError') {
-            throw new Error('A requisição excedeu o tempo limite. Verifique sua conexão.');
-          }
-          throw fetchError;
+      // Determina a URL do proxy com base no ambiente
+      const getProxyUrl = () => {
+        // Verificar se estamos em ambiente local
+        if (window.location.hostname === 'localhost' || 
+            window.location.hostname === '127.0.0.1') {
+          return 'http://localhost:9092/proxy-api';
+        } else {
+          // Em produção, usar URL relativa para evitar CORS
+          // Isso assume que o proxy está sendo servido do mesmo domínio
+          return '/proxy-api';
         }
+      };
+
+      // URL do proxy que encaminhará para o webhook
+      const proxyUrl = getProxyUrl();
+      console.log('Usando proxy URL:', proxyUrl);
+      
+      // Preparar os dados para envio
+      const requestData = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(messageData)
+      };
+      
+      try {
+        // Tentar enviar a requisição para o proxy com timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos de timeout
+        
+        console.log('Enviando requisição para o proxy...');
+        const response = await fetch(proxyUrl, {
+          ...requestData,
+          signal: controller.signal
+        });
+          
+        clearTimeout(timeoutId);
+        
+        // Verificar se a resposta foi bem-sucedida
+        if (!response.ok) {
+          throw new Error(`Erro na comunicação com o servidor: ${response.status}`);
+        }
+        
+        // Processar a resposta do proxy
+        data = await response.json();
+        console.log('Resposta recebida do proxy:', data);
+      } catch (fetchError) {
+        console.error('Erro ao comunicar com o proxy:', fetchError);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('A requisição excedeu o tempo limite. Verifique sua conexão.');
+        }
+        throw fetchError;
       }
       
       // Remove typing indicator
@@ -296,6 +300,13 @@ document.addEventListener('DOMContentLoaded', function() {
       
       if (data && data.response) {
         resposta = data.response;
+      } else if (data && data.reply) {
+        resposta = data.reply;
+      } else if (data && data.output) {
+        resposta = data.output;
+      } else if (data && data.error) {
+        console.error('Erro recebido do servidor:', data.error);
+        resposta = data.message || 'Ocorreu um erro ao processar sua solicitação.';
       }
       
       // Adicionar resposta do bot
