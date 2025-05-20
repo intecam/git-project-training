@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
+  // Evitar inicialização duplicada
+  if (window.chatWidgetInitialized) return;
+  window.chatWidgetInitialized = true;
   // Gerar ID de sessão único
   const generateSessionId = () => {
     // Combine timestamp with random numbers for uniqueness
@@ -102,7 +105,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const sendButton = document.getElementById('sendButton');
 
   // Toggle chat widget
-  function toggleChat() {
+  function toggleChat(event) {
+    if (event) event.stopPropagation();
     if (chatWidget.style.display === 'flex') {
       chatWidget.style.display = 'none';
       chatBar.style.display = 'flex';
@@ -117,6 +121,23 @@ document.addEventListener('DOMContentLoaded', function() {
   // Add event listeners
   chatBar.addEventListener('click', toggleChat);
   closeButton.addEventListener('click', toggleChat);
+  
+  // Fechar o chat quando clicar fora (opcional - adiciona mais robustez)
+  document.addEventListener('click', function(event) {
+    if (chatWidget.style.display === 'flex' && 
+        !chatWidget.contains(event.target) && 
+        !chatBar.contains(event.target)) {
+      toggleChat();
+    }
+  });
+  
+  // Lidar com redimensionamento da janela
+  window.addEventListener('resize', function() {
+    // Ajustar layout se necessário
+    if (window.innerWidth <= 480 && chatWidget.style.display === 'flex') {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+  });
 
   // Format time
   function formatTime() {
@@ -176,6 +197,10 @@ document.addEventListener('DOMContentLoaded', function() {
   async function sendMessage() {
     const text = messageInput.value.trim();
     if (!text) return;
+    
+    // Desabilitar o botão de envio para evitar envios duplicados
+    sendButton.disabled = true;
+    sendButton.style.opacity = '0.7';
 
     // Add user message
     addMessage(text, true);
@@ -231,6 +256,10 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Show error message
       addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.', false);
+    } finally {
+      // Reativar o botão de envio
+      sendButton.disabled = false;
+      sendButton.style.opacity = '1';
     }
   }
 
@@ -245,10 +274,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // Add initial bot message
-  addMessage(`Bem vindo a Gao Tech.
+  // Verificar se o container de mensagens está vazio antes de adicionar a mensagem inicial
+  if (messagesContainer.children.length === 0) {
+    // Add initial bot message
+    addMessage(`Bem vindo a Gao Tech.
 Somos especialistas em tecnologia. Nossa missão é tornar sua vida mais simples e conectada
 por meio de soluções inovadoras.
 
 Como podemos ajudar?`, false);
+  }
 });
