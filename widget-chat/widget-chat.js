@@ -221,31 +221,72 @@ document.addEventListener('DOMContentLoaded', function() {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
     
     try {
-      // Enviar mensagem para o webhook
-      const webhookUrl = 'https://webhook.gaotech.com.br/webhook/f7536d59-eed7-4b27-858e-a8f66f462c08/chat';
+      // Verificar se estamos em ambiente local
+      const isLocalhost = window.location.hostname === 'localhost' || 
+                         window.location.hostname === '127.0.0.1' ||
+                         window.location.hostname === '';
       
-      // Preparar os dados para envio
-      const requestData = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          message: text,
-          sessionId: sessionId
-        })
+      // Dados a serem enviados
+      const messageData = {
+        message: text,
+        sessionId: sessionId
       };
       
-      // Enviar a requisição para o webhook
-      const response = await fetch(webhookUrl, requestData);
+      // Log para debug
+      console.log('Enviando mensagem:', messageData);
       
-      // Verificar se a resposta foi bem-sucedida
-      if (!response.ok) {
-        throw new Error(`Erro na comunicação com o servidor: ${response.status}`);
+      let data;
+      
+      if (isLocalhost) {
+        // Em ambiente local, simular resposta para evitar erro de CORS
+        console.log('Ambiente local detectado! Simulando resposta do webhook...');
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simular delay de rede
+        
+        // Simulação de resposta
+        data = {
+          success: true,
+          response: `Resposta simulada para: "${text}". Em produção, esta resposta virá do webhook.`
+        };
+      } else {
+        // Enviar mensagem para o webhook em produção
+        const webhookUrl = 'https://webhook.gaotech.com.br/webhook/f7536d59-eed7-4b27-858e-a8f66f462c08/chat';
+        
+        // Preparar os dados para envio
+        const requestData = {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(messageData)
+        };
+        
+        try {
+          // Tentar enviar a requisição para o webhook com timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos de timeout
+          
+          const response = await fetch(webhookUrl, {
+            ...requestData,
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          // Verificar se a resposta foi bem-sucedida
+          if (!response.ok) {
+            throw new Error(`Erro na comunicação com o servidor: ${response.status}`);
+          }
+          
+          // Processar a resposta do webhook
+          data = await response.json();
+        } catch (fetchError) {
+          console.error('Erro ao comunicar com webhook:', fetchError);
+          if (fetchError.name === 'AbortError') {
+            throw new Error('A requisição excedeu o tempo limite. Verifique sua conexão.');
+          }
+          throw fetchError;
+        }
       }
-      
-      // Processar a resposta do webhook
-      const data = await response.json();
       
       // Remove typing indicator
       messagesContainer.removeChild(typingIndicator);
@@ -261,7 +302,7 @@ document.addEventListener('DOMContentLoaded', function() {
       addMessage(resposta, false);
       
       // Log para debug
-      console.log('Resposta do webhook:', data);
+      console.log('Resposta processada:', data);
       
     } catch (error) {
       console.error('Erro ao processar mensagem:', error);
