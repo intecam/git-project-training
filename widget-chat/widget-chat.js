@@ -221,30 +221,47 @@ document.addEventListener('DOMContentLoaded', function() {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
     
     try {
-      // Simular resposta do servidor (em um ambiente real, você faria uma chamada fetch para seu backend)
-      // Esperar 1 segundo para simular um delay de rede
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Enviar mensagem para o webhook
+      const webhookUrl = 'https://webhook.gaotech.com.br/webhook/f7536d59-eed7-4b27-858e-a8f66f462c08/chat';
+      
+      // Preparar os dados para envio
+      const requestData = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: text,
+          sessionId: sessionId
+        })
+      };
+      
+      // Enviar a requisição para o webhook
+      const response = await fetch(webhookUrl, requestData);
+      
+      // Verificar se a resposta foi bem-sucedida
+      if (!response.ok) {
+        throw new Error(`Erro na comunicação com o servidor: ${response.status}`);
+      }
+      
+      // Processar a resposta do webhook
+      const data = await response.json();
       
       // Remove typing indicator
       messagesContainer.removeChild(typingIndicator);
       
-      // Simular resposta do bot
+      // Adicionar resposta do webhook ou resposta padrão se não houver
       let resposta = "Obrigado por entrar em contato com a Gao Tech! Estamos processando sua solicitação.";
       
-      // Personalizar respostas baseado em palavras-chave comuns
-      const lowerText = text.toLowerCase();
-      if (lowerText.includes('preço') || lowerText.includes('valor') || lowerText.includes('custo')) {
-        resposta = "Para informações sobre preços e orçamentos, enviaremos uma proposta personalizada. Por favor, nos informe mais detalhes sobre seu projeto ou entre em contato pelo e-mail contato@gaotech.com.br.";
-      } else if (lowerText.includes('contato') || lowerText.includes('telefone') || lowerText.includes('email')) {
-        resposta = "Você pode entrar em contato conosco através do e-mail: contato@gaotech.com.br ou pelo telefone (11) 9999-9999.";
-      } else if (lowerText.includes('serviço') || lowerText.includes('desenvolvimento') || lowerText.includes('consultoria')) {
-        resposta = "A Gao Tech oferece serviços completos de desenvolvimento de software, consultoria em TI, aplicativos móveis e gestão de dados. Que tipo de solução você está procurando?";
-      } else if (lowerText.includes('oi') || lowerText.includes('olá') || lowerText.includes('ola') || lowerText.includes('bom dia') || lowerText.includes('boa tarde')) {
-        resposta = "Olá! Como podemos ajudar você hoje? Estamos disponíveis para esclarecer suas dúvidas sobre nossos serviços.";
+      if (data && data.response) {
+        resposta = data.response;
       }
       
       // Adicionar resposta do bot
       addMessage(resposta, false);
+      
+      // Log para debug
+      console.log('Resposta do webhook:', data);
       
     } catch (error) {
       console.error('Erro ao processar mensagem:', error);
