@@ -1,0 +1,254 @@
+document.addEventListener('DOMContentLoaded', function() {
+  // Gerar ID de sessão único
+  const generateSessionId = () => {
+    // Combine timestamp with random numbers for uniqueness
+    const timestamp = Date.now();
+    const randomNum = Math.floor(Math.random() * 10000000);
+    // Concatenate to create a numeric-only ID without hyphens
+    return parseInt(timestamp.toString() + randomNum.toString());
+  };
+  
+  // Get or create a session ID
+  let sessionId = localStorage.getItem('gao_chat_session_id');
+  if (!sessionId) {
+    sessionId = generateSessionId();
+    localStorage.setItem('gao_chat_session_id', sessionId);
+  }
+  console.log('Using session ID:', sessionId);
+  
+  // Adicionar HTML do widget de chat ao final do body
+  const widgetHTML = `
+    <!-- Chat Bar (quando fechado) -->
+    <div class="chat-bar" id="chatBar">
+      <div class="avatar">
+        <span class="icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="18 15 12 9 6 15"></polyline>
+          </svg>
+        </span>
+      </div>
+      <input type="text" class="chat-input-placeholder" placeholder="Envie uma mensagem..." readonly>
+      <div class="send-icon">
+        <span class="icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </span>
+      </div>
+    </div>
+
+    <!-- Chat Widget (quando aberto) -->
+    <div class="chat-widget" id="chatWidget">
+      <!-- Botão fechar -->
+      <button class="close-button" id="closeButton">×</button>
+      
+      <!-- Área de mensagens -->
+      <div class="messages-container" id="messagesContainer">
+        <!-- Bot welcome message - will be added by JavaScript -->
+      </div>
+      
+      <!-- Área de input -->
+      <div class="input-container">
+        <div class="input-wrapper">
+          <input 
+            type="text" 
+            class="message-input" 
+            id="messageInput" 
+            placeholder="Digite sua mensagem..."
+          >
+          <button class="send-button" id="sendButton">
+            <span class="icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Adicionar HTML ao final do body
+  const widgetContainer = document.createElement('div');
+  widgetContainer.innerHTML = widgetHTML;
+  document.body.appendChild(widgetContainer);
+  
+  // Icons SVG
+  const userIconSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+      <circle cx="12" cy="7" r="4"></circle>
+    </svg>
+  `;
+
+  const botIconSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
+      <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+      <circle cx="12" cy="5" r="2"></circle>
+      <path d="M12 7v4"></path>
+      <line x1="8" y1="16" x2="8" y2="16"></line>
+      <line x1="16" y1="16" x2="16" y2="16"></line>
+    </svg>
+  `;
+  
+  // DOM Elements
+  const chatBar = document.getElementById('chatBar');
+  const chatWidget = document.getElementById('chatWidget');
+  const closeButton = document.getElementById('closeButton');
+  const messagesContainer = document.getElementById('messagesContainer');
+  const messageInput = document.getElementById('messageInput');
+  const sendButton = document.getElementById('sendButton');
+
+  // Toggle chat widget
+  function toggleChat() {
+    if (chatWidget.style.display === 'flex') {
+      chatWidget.style.display = 'none';
+      chatBar.style.display = 'flex';
+    } else {
+      chatWidget.style.display = 'flex';
+      chatBar.style.display = 'none';
+      // Focus the input when opening
+      setTimeout(() => messageInput.focus(), 100);
+    }
+  }
+
+  // Add event listeners
+  chatBar.addEventListener('click', toggleChat);
+  closeButton.addEventListener('click', toggleChat);
+
+  // Format time
+  function formatTime() {
+    const now = new Date();
+    return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // Add message to chat
+  function addMessage(text, isUser) {
+    // Create message wrapper
+    const messageWrapper = document.createElement('div');
+    messageWrapper.className = isUser ? 'message-wrapper user' : 'message-wrapper bot';
+
+    // Create message content container
+    const messageDiv = document.createElement('div');
+    messageDiv.className = isUser ? 'message user' : 'message bot';
+
+    // Create message bubble
+    const bubbleDiv = document.createElement('div');
+    bubbleDiv.className = 'message-bubble';
+    
+    // Process text to handle line breaks and preserve formatting
+    const formattedText = text.replace(/\n/g, '<br>');
+    bubbleDiv.innerHTML = formattedText;
+
+    // Create time element
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'message-time';
+    timeDiv.textContent = formatTime();
+
+    // Create icon
+    const iconDiv = document.createElement('div');
+    iconDiv.className = isUser ? 'message-icon user' : 'message-icon bot';
+    iconDiv.innerHTML = isUser ? userIconSvg : botIconSvg;
+
+    // Assemble the message
+    messageDiv.appendChild(bubbleDiv);
+    messageDiv.appendChild(timeDiv);
+
+    // Add icon and message to wrapper in correct order
+    if (isUser) {
+      messageWrapper.appendChild(messageDiv);
+      messageWrapper.appendChild(iconDiv);
+    } else {
+      messageWrapper.appendChild(iconDiv);
+      messageWrapper.appendChild(messageDiv);
+    }
+
+    // Add to container
+    messagesContainer.appendChild(messageWrapper);
+
+    // Scroll to bottom
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  // Send message
+  async function sendMessage() {
+    const text = messageInput.value.trim();
+    if (!text) return;
+
+    // Add user message
+    addMessage(text, true);
+    messageInput.value = '';
+    
+    // Show typing indicator
+    const typingIndicator = document.createElement('div');
+    typingIndicator.className = 'message-wrapper bot';
+    typingIndicator.innerHTML = `
+      <div class="message-icon bot">${botIconSvg}</div>
+      <div class="message bot">
+        <div class="message-bubble typing-indicator">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    `;
+    messagesContainer.appendChild(typingIndicator);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    try {
+      // Simular resposta do servidor (em um ambiente real, você faria uma chamada fetch para seu backend)
+      // Esperar 1 segundo para simular um delay de rede
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Remove typing indicator
+      messagesContainer.removeChild(typingIndicator);
+      
+      // Simular resposta do bot
+      let resposta = "Obrigado por entrar em contato com a Gao Tech! Estamos processando sua solicitação.";
+      
+      // Personalizar respostas baseado em palavras-chave comuns
+      const lowerText = text.toLowerCase();
+      if (lowerText.includes('preço') || lowerText.includes('valor') || lowerText.includes('custo')) {
+        resposta = "Para informações sobre preços e orçamentos, enviaremos uma proposta personalizada. Por favor, nos informe mais detalhes sobre seu projeto ou entre em contato pelo e-mail contato@gaotech.com.br.";
+      } else if (lowerText.includes('contato') || lowerText.includes('telefone') || lowerText.includes('email')) {
+        resposta = "Você pode entrar em contato conosco através do e-mail: contato@gaotech.com.br ou pelo telefone (11) 9999-9999.";
+      } else if (lowerText.includes('serviço') || lowerText.includes('desenvolvimento') || lowerText.includes('consultoria')) {
+        resposta = "A Gao Tech oferece serviços completos de desenvolvimento de software, consultoria em TI, aplicativos móveis e gestão de dados. Que tipo de solução você está procurando?";
+      } else if (lowerText.includes('oi') || lowerText.includes('olá') || lowerText.includes('ola') || lowerText.includes('bom dia') || lowerText.includes('boa tarde')) {
+        resposta = "Olá! Como podemos ajudar você hoje? Estamos disponíveis para esclarecer suas dúvidas sobre nossos serviços.";
+      }
+      
+      // Adicionar resposta do bot
+      addMessage(resposta, false);
+      
+    } catch (error) {
+      console.error('Erro ao processar mensagem:', error);
+      
+      // Remove typing indicator if it exists
+      if (messagesContainer.contains(typingIndicator)) {
+        messagesContainer.removeChild(typingIndicator);
+      }
+      
+      // Show error message
+      addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.', false);
+    }
+  }
+
+  // Send message on button click
+  sendButton.addEventListener('click', sendMessage);
+
+  // Send message on Enter key
+  messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // Add initial bot message
+  addMessage(`Bem vindo a Gao Tech.
+Somos especialistas em tecnologia. Nossa missão é tornar sua vida mais simples e conectada
+por meio de soluções inovadoras.
+
+Como podemos ajudar?`, false);
+});
