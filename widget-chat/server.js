@@ -7,11 +7,14 @@ const app = express();
 // Configuração do CORS para permitir todas as origens
 app.use(cors());
 app.use(express.json());
+// Servir arquivos estáticos da pasta widget-chat
 app.use(express.static(path.join(__dirname)));
+// Servir arquivos estáticos da pasta pai (raiz do projeto)
+app.use(express.static(path.join(__dirname, '..')));
 
 // Rota para a página principal
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(__dirname, 'widget-demo.html'));
 });
 
 // Rota proxy para o webhook do n8n
@@ -91,7 +94,7 @@ app.post('/proxy-api', async (req, res) => {
 });
 
 // Iniciar o servidor
-const PORT = process.env.PORT || 9092;
+const PORT = process.env.PORT || 9093;
 app.listen(PORT, () => {
   console.log(`Servidor rodando em http://localhost:${PORT}`);
   console.log('Abra esta URL no navegador para testar o widget de chat');
